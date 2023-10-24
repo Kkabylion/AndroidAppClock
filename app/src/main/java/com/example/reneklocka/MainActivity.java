@@ -28,7 +28,7 @@ public class MainActivity extends AppCompatActivity {
 
     // Holds the Time
     private long returnTime;
-    
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -52,16 +52,14 @@ private void getNTPTime(){
     new Thread(() -> {
     try {
         // Get IP address from the NTP server
-        InetAdress inetAdress = InetAdress.getByName(timeServer);
+        InetAddress inetAddress = InetAddress.getByName(timeServer);
         // Get the time from the NTP server
         TimeInfo timeInfo = reneClient.getTime(inetAdress);
-
         returnTime = timeInfo.getMessage().getTransmitTimeStamp().getTime();
 
     } catch (Exception e){
         e.printStackTrace();
     }
-
 
         // Start thread
     }).start();
@@ -72,7 +70,7 @@ private void getNTPTime(){
         // Fetch the Textviews from the layout
         TextView timeTextView = findViewById(R.id.timeTextView);
         TextView systemTimeTextView = findViewById(R.id.systemTimeTextView);
-        TextView offsetTextView = findViewById(R.id.offsettimeTextView);
+        TextView offsetTextView = findViewById(R.id.offsetTextView);
 
         // Formatter to display the time in HH:mm:ss format
         SimpleDateFormat Format = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
