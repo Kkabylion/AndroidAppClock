@@ -16,26 +16,28 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.concurrent.TimeUnit;
+
 
 public class MainActivity extends AppCompatActivity {
 
     // Be able to connect to NTP Server
-    private final NTPUDPClient reneClient = new NTPUDPClient();
+    private final NTPUDPClient reneclient = new NTPUDPClient();
 
     // The address for the NTP Server, googles public server
     private final String timeServer = "time.google.com";
 
-    // Holds the Time
+    // Holds the ntp time
     private long returnTime;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        // Fetch current Time from NTP server
-        getNTPTime();
 
+        // Fetch current Time from NTP server
+        if (isNetworkConnected()) {
+            getNTPTime();
+        }
         // Timer to update the UI every 1 second
         Timer timer = new Timer();
         timer.scheduleAtFixedRate(new TimerTask() {
@@ -50,67 +52,63 @@ public class MainActivity extends AppCompatActivity {
 private void getNTPTime(){
         // Start a new Thread for network operations
     new Thread(() -> {
-    try {
+        try {
         // Get IP address from the NTP server
-        InetAddress inetAddress = InetAddress.getByName(timeServer);
+            InetAddress inetAddress = InetAddress.getByName(timeServer);
         // Get the time from the NTP server
-        TimeInfo timeInfo = reneClient.getTime(inetAdress);
-        returnTime = timeInfo.getMessage().getTransmitTimeStamp().getTime();
+            TimeInfo timeInfo = reneclient.getTime(inetAddress);
+            returnTime = timeInfo.getMessage().getTransmitTimeStamp().getTime();
 
-    } catch (Exception e){
-        e.printStackTrace();
+        }   catch (Exception e){
+            e.printStackTrace();
+            // This will make the time go back to system time
+            returnTime = 0;
     }
-
         // Start thread
     }).start();
     }
 
-    // Updates the textfields for the ntptime,systemtime, offset time.
+    // Updates the textview for the ntptime..
     private void updateDisplay() {
         // Fetch the Textviews from the layout
         TextView timeTextView = findViewById(R.id.timeTextView);
-        TextView systemTimeTextView = findViewById(R.id.systemTimeTextView);
-        TextView offsetTextView = findViewById(R.id.offsetTextView);
 
         // Formatter to display the time in HH:mm:ss format
-        SimpleDateFormat Format = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+        SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
 
         // Gets current system time
         Date systemTime = new Date();
-        String systemTimeString = format.format(systemTime);
-        systemTimeTextView.setText("System Time: " + systemTimeString);
-
         // Display the NTP time or system time, if the time hasn't been retrieved
-        Date ntpTime;
+        Date ntpTime = (returnTime != 0) ? new Date(returnTime) : systemTime;
         if (returnTime != 0) {
-            ntpTime = new Date(returnTime);
             returnTime += 1000;
-        } else{
+        } // Sets the time string to the TextView
+        String ntpTimeString = format.format(ntpTime);
+        timeTextView.setText(ntpTimeString);
+        // Updates the round_background.xml based on network connectivity.
+        if (isNetworkConnected()){
+            timeTextView.setBackgroundResource(R.drawable.round_background);
+        } else {
+            timeTextView.setBackgroundResource(R.drawable.round_background2);
 
-            ntpTime = systemTime;
         }
-        String ntpTimeSting = format.format(ntpTime);
-        timeTextView.setText("NTP Time: " + ntpTimeString);
-
-        long offsetMillis = ntpTime.getTime() - systemTime.getTime();
-        long hours = TimeUnit.MILLISECONDS.toHours(offsetMillis);
-        long minutes = TimeUnit.MILLISECONDS.toMinutes(offsetMillis) % 60;
-        long seconds = TimeUnit.MILLISECONDS.toSeconds(offsetMillis) % 60;
-        String offsetString = String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds);
-        offsetTextView.setText("Offset: " + offsetString);
     }
         // BroadcastReceiver to listen for network state changes
-        private final BroadcastReceiver networkReceiver = new BroadcastReceived() {
-
-
+        private final BroadcastReceiver networkReceiver = new BroadcastReceiver() {
         @Override
-            public void onReceive(Context context, Intent intent)   {
-            // Update NTP time, when network connection changes
-            getNTPTime();
+            public void onReceive(Context context, Intent intent) {
+            // If connected to a network, fetch NTP time
+            if (isNetworkConnected()) {
+                // Update NTP time, when network connection changes
+                getNTPTime();
+            } else {
+                // Reset the time if there is no network connection.
+                returnTime = 0;
+            }
         }
         };
 
-        // Calls during activity
+        // Calls method during activity on the foreground.
         @Override
         protected void onResume(){
             super.onResume();
@@ -118,11 +116,17 @@ private void getNTPTime(){
             IntentFilter filter = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
             registerReceiver(networkReceiver, filter);
         }
-
+        // Calls method when activity goes to the background.
         @Override
         protected void onPause() {
-            super.onPause;
-            // stops listening to network changes
+            super.onPause();
+            // Stops listening to network changes
             unregisterReceiver(networkReceiver);
         }
-}
+        // Method to check if the Cellphone is connected to a network.
+        private boolean isNetworkConnected() {
+            ConnectivityManager cma = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            return cma != null && cma.getActiveNetworkInfo() != null && cma.getActiveNetworkInfo().isConnected();
+        }
+    }
+
